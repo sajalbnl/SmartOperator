@@ -1,0 +1,28 @@
+.DS_Store
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Expo local state (used from Phase 2)
+.expo/
+
+# Logs and local scratch files
+*.log
+*.tmp
+.gstack/
+.claude/settings.local.json
+
+# files
+.PHASE_0_SETUP.md
+.myto-prototype-spec.md
+.PHASE_PROMPTS.md
+.PRD.md
