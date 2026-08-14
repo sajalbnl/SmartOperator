@@ -22,7 +22,7 @@ coverage/
 .claude/settings.local.json
 
 # files
-.PHASE_0_SETUP.md
-.myto-prototype-spec.md
-.PHASE_PROMPTS.md
-.PRD.md
+PHASE_0_SETUP.md
+myto-prototype-spec.md
+PHASE_PROMPTS.md
+PRD.md
