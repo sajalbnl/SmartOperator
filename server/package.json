@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "node --import tsx scripts/migrate.ts",
     "seed": "node --import tsx scripts/seed.ts",
+    "e2e:upload": "node --import tsx scripts/e2e-upload.ts",
     "verify:s3": "node --import tsx scripts/verify-s3-multipart.ts",
     "verify:openai": "node --import tsx scripts/verify-openai.ts",
     "verify:anthropic": "node --import tsx scripts/verify-anthropic.ts"
