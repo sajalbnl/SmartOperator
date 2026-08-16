@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "SmartOperator",
+    "slug": "smartoperator",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": [
+      "android"
+    ],
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.smartoperator.capture",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow SmartOperator to record factory video.",
+          "microphonePermission": "Allow SmartOperator to record the expert's voice.",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      "./plugins/withBackgroundVideoRecorder"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "47962925-47ac-46c9-9b28-52e7cd1a9384"
+      }
+    },
+    "owner": "sajal07"
+  }
+}
