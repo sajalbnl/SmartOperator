@@ -15,10 +15,11 @@ export type RecordingResult = {
 declare class BackgroundVideoRecorderModule extends NativeModule<{}> {
   getStatus(): RecorderStatus;
   startRecording(outputUri: string): Promise<{ uri: string }>;
+  startUploadService(unfinishedCaptures: number): Promise<void>;
   stopRecording(): Promise<RecordingResult>;
+  stopUploadService(): Promise<void>;
 }
 
 export default requireNativeModule<BackgroundVideoRecorderModule>(
   'BackgroundVideoRecorder',
 );
-

@@ -1,6 +1,11 @@
 # SmartOperator Android app
 
-Android-only Expo development-client app for factory video capture.
+Android-only Expo development-client app for offline-first factory video capture.
+
+Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to the Express
+server's HTTPS base URL. A physical phone cannot reach a server at `localhost`;
+for local testing use the computer's LAN IP and ensure Android permits the
+chosen transport (HTTPS is strongly preferred).
 
 ## Why a development build is required
 
@@ -62,6 +67,28 @@ phone and select the discovered development server.
    and a private path under `files/captures/`.
 6. Navigate through Capture, Review, and Ask; the latter two are intentionally
    labeled placeholders in this phase.
+
+## Phase 3 kill/recovery acceptance test
+
+1. Start the backend and confirm the phone can reach its `/health` endpoint.
+2. Turn airplane mode on and record three captures. SQLite rows and 5 MB byte
+   ranges must appear immediately as `pending` / `OFFLINE QUEUED`.
+3. Turn airplane mode off. While a part is `uploading`, swipe the app away.
+4. Reopen SmartOperator. Do not tap anything: cold-start `/resume` must refresh
+   URLs and the queue must drain through `done` to capture `DONE`.
+5. Repeat three consecutive times, then compare device SQLite with Postgres and
+   verify each assembled S3 object has the capture's exact byte size.
+
+Useful device inspection commands:
+
+```sh
+adb shell run-as com.smartoperator.capture ls -lh files/captures
+adb shell run-as com.smartoperator.capture ls databases
+adb shell am force-stop com.smartoperator.capture
+adb exec-out run-as com.smartoperator.capture cat databases/smartoperator-queue.db > /tmp/smartoperator-queue.db
+sqlite3 /tmp/smartoperator-queue.db '.mode box' 'select server_id,status,total_bytes,last_error from captures order by created_at;'
+sqlite3 /tmp/smartoperator-queue.db '.mode box' 'select capture_id,part_number,state,attempts,last_error from chunks order by capture_id,part_number;'
+```
 
 For a debug-level disk check while the phone is connected:
 

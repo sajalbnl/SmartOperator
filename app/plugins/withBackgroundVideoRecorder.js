@@ -2,11 +2,14 @@ const { withAndroidManifest } = require('expo/config-plugins');
 
 const SERVICE_NAME =
   'expo.modules.smartoperatorrecorder.BackgroundVideoRecorderService';
+const UPLOAD_SERVICE_NAME =
+  'expo.modules.smartoperatorrecorder.UploadForegroundService';
 
 const REQUIRED_PERMISSIONS = [
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_CAMERA',
   'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+  'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
 ];
 
 function addPermission(manifest, permission) {
@@ -48,6 +51,24 @@ function withBackgroundVideoRecorder(config) {
     } else {
       services.push({ $: attributes });
     }
+
+    const existingUploadService = services.find(
+      (service) => service.$?.['android:name'] === UPLOAD_SERVICE_NAME,
+    );
+    const uploadAttributes = {
+      'android:name': UPLOAD_SERVICE_NAME,
+      'android:exported': 'false',
+      'android:foregroundServiceType': 'dataSync',
+      'android:stopWithTask': 'true',
+    };
+    if (existingUploadService) {
+      existingUploadService.$ = {
+        ...existingUploadService.$,
+        ...uploadAttributes,
+      };
+    } else {
+      services.push({ $: uploadAttributes });
+    }
     application.service = services;
 
     return configWithManifest;
@@ -55,4 +76,3 @@ function withBackgroundVideoRecorder(config) {
 }
 
 module.exports = withBackgroundVideoRecorder;
-

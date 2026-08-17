@@ -1,10 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { CaptureScreen } from './screens/CaptureScreen';
 import { PlaceholderScreen } from './screens/PlaceholderScreen';
 import { colors } from './theme';
+import { durableUploader } from './queue/uploader';
 
 type Tab = 'Capture' | 'Review' | 'Ask';
 
@@ -12,6 +13,11 @@ const tabs: Tab[] = ['Capture', 'Review', 'Ask'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('Capture');
+
+  useEffect(() => {
+    void durableUploader.start();
+    return () => durableUploader.stop();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>

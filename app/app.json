@@ -26,7 +26,8 @@
           "barcodeScannerEnabled": false
         }
       ],
-      "./plugins/withBackgroundVideoRecorder"
+      "./plugins/withBackgroundVideoRecorder",
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {
