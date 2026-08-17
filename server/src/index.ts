@@ -3,6 +3,14 @@ import express from "express";
 import { db } from "./db.js";
 import { HttpError } from "./http-error.js";
 import {
+  getPipelineStatus,
+  resumeInterruptedPipelines,
+  retryCapturePipeline,
+  triggerCapturePipeline,
+} from "./pipeline.js";
+import { approveProcedure, listProcedures, rejectProcedure } from "./procedures.js";
+import type { ReviewStatus } from "./review-state.js";
+import {
   finishCapture,
   initializeCapture,
   markPartComplete,
@@ -77,17 +85,75 @@ app.post("/captures/:id/parts/:partNumber/complete", async (request, response) =
 });
 
 app.post("/captures/:id/complete", async (request, response) => {
-  response.status(200).json(
-    await finishCapture(
-      positivePathInteger(request.params.id, "capture id").toString(),
-    ),
-  );
+  const captureId = positivePathInteger(request.params.id, "capture id").toString();
+  const result = await finishCapture(captureId);
+  triggerCapturePipeline(captureId);
+  response.status(200).json(result);
 });
 
 app.get("/captures/:id/resume", async (request, response) => {
   response.status(200).json(
     await resumeCapture(
       positivePathInteger(request.params.id, "capture id").toString(),
+    ),
+  );
+});
+
+app.get("/captures/:id/pipeline", async (request, response) => {
+  response.status(200).json(
+    await getPipelineStatus(
+      positivePathInteger(request.params.id, "capture id").toString(),
+    ),
+  );
+});
+
+app.post("/captures/:id/pipeline/retry", async (request, response) => {
+  response.status(202).json(
+    await retryCapturePipeline(
+      positivePathInteger(request.params.id, "capture id").toString(),
+    ),
+  );
+});
+
+app.get("/procedures", async (request, response) => {
+  const approvedValue = request.query.approved;
+  const reviewStatusValue = request.query.review_status;
+  if (approvedValue !== undefined && reviewStatusValue !== undefined) {
+    throw new HttpError(400, "Use either approved or review_status, not both.");
+  }
+  let approved: boolean | null = null;
+  if (approvedValue !== undefined) {
+    if (approvedValue !== "true" && approvedValue !== "false") {
+      throw new HttpError(400, "approved must be true or false.");
+    }
+    approved = approvedValue === "true";
+  }
+  let reviewStatus: ReviewStatus | null = null;
+  if (reviewStatusValue !== undefined) {
+    if (
+      reviewStatusValue !== "pending" &&
+      reviewStatusValue !== "approved" &&
+      reviewStatusValue !== "rejected"
+    ) {
+      throw new HttpError(400, "review_status must be pending, approved, or rejected.");
+    }
+    reviewStatus = reviewStatusValue;
+  }
+  response.status(200).json(await listProcedures(reviewStatus, approved));
+});
+
+app.post("/procedures/:id/approve", async (request, response) => {
+  response.status(200).json(
+    await approveProcedure(
+      positivePathInteger(request.params.id, "procedure id").toString(),
+    ),
+  );
+});
+
+app.post("/procedures/:id/reject", async (request, response) => {
+  response.status(200).json(
+    await rejectProcedure(
+      positivePathInteger(request.params.id, "procedure id").toString(),
     ),
   );
 });
@@ -114,6 +180,9 @@ app.use(
 
 const server = app.listen(port, () => {
   console.log(`SmartOperator server listening on port ${port}`);
+  void resumeInterruptedPipelines().catch((error) => {
+    console.error("Could not resume interrupted capture pipelines:", error);
+  });
 });
 
 async function shutdown(): Promise<void> {

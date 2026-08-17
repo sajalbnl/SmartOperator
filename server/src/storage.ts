@@ -1,12 +1,16 @@
 import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   S3Client,
   S3ServiceException,
   UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { requireEnv } from "../scripts/env.js";
 
 const bucket = requireEnv("AWS_S3_BUCKET");
@@ -84,3 +88,14 @@ export function isMissingMultipartUpload(error: unknown): boolean {
   return error instanceof S3ServiceException && error.name === "NoSuchUpload";
 }
 
+export async function downloadObject(key: string, destination: string): Promise<void> {
+  const object = await client.send(
+    new GetObjectCommand({ Bucket: bucket, Key: key }),
+  );
+
+  if (!object.Body) {
+    throw new Error(`S3 object ${key} has no response body.`);
+  }
+
+  await pipeline(object.Body as Readable, createWriteStream(destination));
+}

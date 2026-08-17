@@ -4,6 +4,7 @@ import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { CaptureScreen } from './screens/CaptureScreen';
 import { PlaceholderScreen } from './screens/PlaceholderScreen';
+import { ReviewScreen } from './screens/ReviewScreen';
 import { colors } from './theme';
 import { durableUploader } from './queue/uploader';
 
@@ -34,7 +35,7 @@ export default function App() {
         importantForAccessibility={activeTab === 'Review' ? 'auto' : 'no-hide-descendants'}
         style={[styles.content, activeTab !== 'Review' && styles.hidden]}
       >
-        <PlaceholderScreen name="Review" />
+        <ReviewScreen isActive={activeTab === 'Review'} />
       </View>
       <View
         accessibilityElementsHidden={activeTab !== 'Ask'}

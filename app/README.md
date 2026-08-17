@@ -65,8 +65,7 @@ phone and select the discovered development server.
    seconds, then stop it.
 5. Confirm the UI shows a non-zero duration, a sensible multi-megabyte size,
    and a private path under `files/captures/`.
-6. Navigate through Capture, Review, and Ask; the latter two are intentionally
-   labeled placeholders in this phase.
+6. Navigate through Capture, Review, and Ask; Ask remains intentionally deferred.
 
 ## Phase 3 kill/recovery acceptance test
 
@@ -89,6 +88,28 @@ adb exec-out run-as com.smartoperator.capture cat databases/smartoperator-queue.
 sqlite3 /tmp/smartoperator-queue.db '.mode box' 'select server_id,status,total_bytes,last_error from captures order by created_at;'
 sqlite3 /tmp/smartoperator-queue.db '.mode box' 'select capture_id,part_number,state,attempts,last_error from chunks order by capture_id,part_number;'
 ```
+
+## Phase 4 transcription/review acceptance test
+
+1. Run `npm run migrate` in `server/`, then start the backend with the OpenAI
+   and Anthropic keys configured. The server bundles ffmpeg for audio extraction.
+2. Record: “When it vibrates after a bearing replacement, check coolant
+   contamination before you replace the bearing again.”
+3. After upload, watch the Capture card advance through uploaded, transcribing,
+   structuring, and ready for review.
+4. Open Review and inspect the transcript and draft. Confirm both the visible
+   **← Drafts** control and Android system Back return to the pending list.
+5. Approve one draft with **Approve and add to knowledge base**. Confirm the
+   success state, `procedures.approved = true`, and `rejected_at IS NULL`.
+6. Open another draft and choose **Reject draft**. Confirm the warning, then
+   reject it. It must leave the pending list and remain in Postgres with
+   `approved = false` and `rejected_at IS NOT NULL`.
+7. In `server/`, run `npm run verify:review-decisions` while the backend is
+   running. This proves repeated decisions are idempotent, opposite decisions
+   return `409`, and reviewed drafts are filtered correctly.
+8. To exercise pipeline failure recovery, call `POST /captures/:id/pipeline/retry` for a
+   failed capture. The unique `capture_id` constraints keep transcript and
+   procedure row counts at one.
 
 For a debug-level disk check while the phone is connected:
 

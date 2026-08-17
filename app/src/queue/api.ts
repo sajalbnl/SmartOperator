@@ -11,6 +11,32 @@ type CaptureRegistration = {
   parts: PresignedPart[];
 };
 
+export type PipelineStatus = 'uploaded' | 'transcribing' | 'structuring' | 'ready' | 'failed';
+
+export type CapturePipeline = {
+  captureId: string;
+  error: string | null;
+  procedureId: string | null;
+  status: PipelineStatus;
+  updatedAt: string | null;
+};
+
+export type ProcedureDraft = {
+  approved: boolean;
+  captureId: string;
+  createdAt: string;
+  id: string;
+  machineId: string;
+  rejectedAt: string | null;
+  reviewStatus: 'pending' | 'approved' | 'rejected';
+  safety: string[];
+  source: string;
+  steps: string[];
+  title: string;
+  tools: string[];
+  transcript: string;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -149,6 +175,26 @@ export function reportPartComplete(serverId: string, partNumber: number, etag: s
 
 export function completeCapture(serverId: string) {
   return jsonRequest<{ status: 'uploaded' }>(`/captures/${serverId}/complete`, {
+    method: 'POST',
+  });
+}
+
+export function getCapturePipeline(serverId: string) {
+  return jsonRequest<CapturePipeline>(`/captures/${serverId}/pipeline`);
+}
+
+export function listPendingProcedures() {
+  return jsonRequest<{ procedures: ProcedureDraft[] }>('/procedures?review_status=pending');
+}
+
+export function rejectProcedure(procedureId: string) {
+  return jsonRequest<{ procedure: ProcedureDraft }>(`/procedures/${procedureId}/reject`, {
+    method: 'POST',
+  });
+}
+
+export function approveProcedure(procedureId: string) {
+  return jsonRequest<{ procedure: ProcedureDraft }>(`/procedures/${procedureId}/approve`, {
     method: 'POST',
   });
 }

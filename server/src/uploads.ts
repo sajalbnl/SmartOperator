@@ -387,7 +387,12 @@ export async function finishCapture(
     }
 
     await client.query(
-      "UPDATE captures SET status = 'uploaded' WHERE id = $1",
+      `UPDATE captures
+       SET status = 'uploaded',
+           pipeline_status = COALESCE(pipeline_status, 'uploaded'),
+           pipeline_error = NULL,
+           pipeline_updated_at = NOW()
+       WHERE id = $1`,
       [captureId],
     );
     await client.query("COMMIT");
@@ -399,4 +404,3 @@ export async function finishCapture(
     client.release();
   }
 }
-

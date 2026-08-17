@@ -22,6 +22,11 @@ import {
   loadQueueSnapshot,
   subscribeToQueue,
 } from '../queue/database';
+import {
+  getCapturePipeline,
+  type CapturePipeline,
+  type PipelineStatus,
+} from '../queue/api';
 import { durableUploader, type UploaderSnapshot } from '../queue/uploader';
 import type { CaptureQueueItem, ChunkState, QueueSnapshot } from '../queue/types';
 
@@ -72,6 +77,21 @@ function stateColor(state: ChunkState) {
   }
 }
 
+function pipelineLabel(status: PipelineStatus) {
+  switch (status) {
+    case 'transcribing':
+      return 'TRANSCRIBING';
+    case 'structuring':
+      return 'STRUCTURING DRAFT';
+    case 'ready':
+      return 'READY FOR REVIEW';
+    case 'failed':
+      return 'PROCESSING FAILED';
+    default:
+      return 'UPLOADED';
+  }
+}
+
 function formatDuration(durationMillis: number) {
   const totalSeconds = Math.floor(durationMillis / 1_000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -100,6 +120,7 @@ export function CaptureScreen() {
   const [lastCapture, setLastCapture] = useState<CaptureDetails | null>(null);
   const [queue, setQueue] = useState<QueueSnapshot>(EMPTY_QUEUE);
   const [uploader, setUploader] = useState<UploaderSnapshot>(durableUploader.getSnapshot());
+  const [pipelines, setPipelines] = useState<Record<string, CapturePipeline>>({});
 
   const hasPermissions =
     cameraPermission?.granted === true && microphonePermission?.granted === true;
@@ -162,6 +183,43 @@ export function CaptureScreen() {
       unsubscribeUploader();
     };
   }, []);
+
+  const completedServerIds = queue.captures
+    .filter((capture) => capture.status === 'done' && capture.server_id)
+    .map((capture) => capture.server_id as string)
+    .join(',');
+
+  useEffect(() => {
+    if (!completedServerIds) {
+      return;
+    }
+
+    let active = true;
+    const serverIds = completedServerIds.split(',');
+    const poll = async () => {
+      const results = await Promise.allSettled(serverIds.map(getCapturePipeline));
+      if (!active) {
+        return;
+      }
+      setPipelines((current) => {
+        const next = { ...current };
+        results.forEach((result, index) => {
+          const serverId = serverIds[index];
+          if (serverId && result.status === 'fulfilled') {
+            next[serverId] = result.value;
+          }
+        });
+        return next;
+      });
+    };
+
+    void poll();
+    const timer = setInterval(() => void poll(), 4_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [completedServerIds]);
 
   const stopRecording = useCallback(async () => {
     if (stopInProgress.current) {
@@ -384,55 +442,79 @@ export function CaptureScreen() {
           <Text style={styles.debugEmpty}>No captures queued yet.</Text>
         </View>
       ) : (
-        queue.captures.map((capture) => (
-          <View key={capture.id} style={styles.captureQueueCard}>
-            <View style={styles.captureQueueHeader}>
-              <Text style={styles.captureId}>{captureDisplayId(capture)}</Text>
-              <Text style={styles.captureRollup}>{captureRollup(capture)}</Text>
-            </View>
-            <Text style={styles.captureMeta}>
-              {formatDuration(capture.duration_s * 1_000)} · {formatBytes(capture.total_bytes)} ·{' '}
-              {capture.chunks.filter((chunk) => chunk.state === 'done').length}/
-              {capture.chunks.length} parts
-            </Text>
-            {capture.last_error ? (
-              <Text selectable style={styles.captureError}>
-                {capture.last_error}
-              </Text>
-            ) : null}
-
-            <View style={styles.chunkTableHeader}>
-              <Text style={[styles.chunkCell, styles.partCell]}>PART</Text>
-              <Text style={[styles.chunkCell, styles.stateCell]}>STATE</Text>
-              <Text style={[styles.chunkCell, styles.attemptCell]}>TRIES</Text>
-            </View>
-            {capture.chunks.map((chunk) => (
-              <View key={chunk.id} style={styles.chunkBlock}>
-                <View style={styles.chunkRow}>
-                  <Text style={[styles.chunkValue, styles.partCell]}>#{chunk.part_number}</Text>
-                  <Text
-                    style={[
-                      styles.chunkValue,
-                      styles.stateCell,
-                      { color: stateColor(chunk.state) },
-                    ]}
-                  >
-                    {chunk.state.toUpperCase()}
-                  </Text>
-                  <Text style={[styles.chunkValue, styles.attemptCell]}>{chunk.attempts}</Text>
-                </View>
-                <Text style={styles.rangeText}>
-                  bytes {chunk.byte_start}–{chunk.byte_end}
-                </Text>
-                {chunk.last_error ? (
-                  <Text selectable style={styles.chunkError}>
-                    {chunk.last_error}
-                  </Text>
-                ) : null}
+        queue.captures.map((capture) => {
+          const pipeline = capture.server_id ? pipelines[capture.server_id] : undefined;
+          return (
+            <View key={capture.id} style={styles.captureQueueCard}>
+              <View style={styles.captureQueueHeader}>
+                <Text style={styles.captureId}>{captureDisplayId(capture)}</Text>
+                <Text style={styles.captureRollup}>{captureRollup(capture)}</Text>
               </View>
-            ))}
-          </View>
-        ))
+              <Text style={styles.captureMeta}>
+                {formatDuration(capture.duration_s * 1_000)} · {formatBytes(capture.total_bytes)} ·{' '}
+                {capture.chunks.filter((chunk) => chunk.state === 'done').length}/
+                {capture.chunks.length} parts
+              </Text>
+              {capture.status === 'done' ? (
+                <View
+                  style={[
+                    styles.pipelineState,
+                    pipeline?.status === 'ready' && styles.pipelineStateReady,
+                    pipeline?.status === 'failed' && styles.pipelineStateFailed,
+                  ]}
+                >
+                  <View style={styles.pipelineStateHeader}>
+                    <Text style={styles.pipelineEyebrow}>KNOWLEDGE PIPELINE</Text>
+                    <Text style={styles.pipelineLabel}>
+                      {pipeline ? pipelineLabel(pipeline.status) : 'UPLOADED'}
+                    </Text>
+                  </View>
+                  {pipeline?.error ? (
+                    <Text selectable style={styles.pipelineError}>
+                      {pipeline.error}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+              {capture.last_error ? (
+                <Text selectable style={styles.captureError}>
+                  {capture.last_error}
+                </Text>
+              ) : null}
+
+              <View style={styles.chunkTableHeader}>
+                <Text style={[styles.chunkCell, styles.partCell]}>PART</Text>
+                <Text style={[styles.chunkCell, styles.stateCell]}>STATE</Text>
+                <Text style={[styles.chunkCell, styles.attemptCell]}>TRIES</Text>
+              </View>
+              {capture.chunks.map((chunk) => (
+                <View key={chunk.id} style={styles.chunkBlock}>
+                  <View style={styles.chunkRow}>
+                    <Text style={[styles.chunkValue, styles.partCell]}>#{chunk.part_number}</Text>
+                    <Text
+                      style={[
+                        styles.chunkValue,
+                        styles.stateCell,
+                        { color: stateColor(chunk.state) },
+                      ]}
+                    >
+                      {chunk.state.toUpperCase()}
+                    </Text>
+                    <Text style={[styles.chunkValue, styles.attemptCell]}>{chunk.attempts}</Text>
+                  </View>
+                  <Text style={styles.rangeText}>
+                    bytes {chunk.byte_start}–{chunk.byte_end}
+                  </Text>
+                  {chunk.last_error ? (
+                    <Text selectable style={styles.chunkError}>
+                      {chunk.last_error}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          );
+        })
       )}
     </ScrollView>
   );
@@ -665,6 +747,42 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
     marginBottom: 8,
+  },
+  pipelineState: {
+    backgroundColor: '#E8EEF2',
+    borderRadius: 10,
+    marginBottom: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  pipelineStateReady: {
+    backgroundColor: '#DCEFE4',
+  },
+  pipelineStateFailed: {
+    backgroundColor: '#F6DED7',
+  },
+  pipelineStateHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  pipelineEyebrow: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  pipelineLabel: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  pipelineError: {
+    color: '#A9321A',
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 7,
   },
   chunkTableHeader: {
     borderBottomColor: colors.line,
