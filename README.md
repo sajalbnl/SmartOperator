@@ -1,71 +1,85 @@
 # SmartOperator
 
-Offline-first Android capture prototype for machine `CNC-042`.
+SmartOperator is an offline-first Android prototype for capturing factory knowledge on unreliable networks. Operators record expert guidance, uploads recover automatically, reviewers approve the generated procedure, and Ask uses that knowledge with citations.
 
-## Repository layout
+The prototype is scoped to machine `CNC-042`.
 
-- `server/` — Express and TypeScript backend
-- `app/` — Android Expo dev-client app with durable capture queue and Review gate
-- `seed/` — hand-authored SOP markdown
-- `PHASE_0_SETUP.md` — external service setup and verification
-- `ONE_PAGER.md` — one-page Phase 6 engineering brief
-- `DEMO_RUNBOOK.md` — exact 90-second shot plan and reset/rehearsal checklist
+## How it works
 
-## Phase 0 commands
-
-Run commands from `server/`:
-
-```sh
-npm install
-npm run typecheck
-npm run migrate
-npm run seed -- --dry-run
-npm run seed
-npm run verify:s3
-npm run verify:openai
-npm run verify:anthropic
+```text
+Android capture → SQLite queue → multipart S3 upload
+→ Whisper transcript → Claude procedure draft → human approval
+→ keyword retrieval → Claude answer with validated citations
 ```
 
-Copy credentials into `server/.env` before commands that use external services. Review the SOPs, especially `SOP-MCH-042`, before running the non-dry-run seed command.
+Key behavior:
 
-## Phase 4 pipeline
+- Records while offline and stores work in an app-private SQLite queue.
+- Uploads in 5 MiB parts and resumes after reconnects or app restarts.
+- Keeps unapproved knowledge out of Ask results.
+- Retries incomplete AI responses and validates citations.
 
-The upload-complete endpoint now starts a serialized, restart-safe in-process
-pipeline: S3 download → bundled ffmpeg audio extraction → Whisper transcription
-→ strict Claude procedure draft. Run `npm run migrate` after pulling changes.
+## Stack
 
-Review APIs:
+Expo, React Native, CameraX, SQLite, Node.js, Express, Supabase Postgres, S3, OpenAI Whisper, Anthropic Claude, Docker, Railway, and EAS.
 
-- `GET /captures/:id/pipeline`
-- `POST /captures/:id/pipeline/retry`
-- `GET /procedures?review_status=pending`
-- `POST /procedures/:id/approve`
-- `POST /procedures/:id/reject`
+## Run locally
 
-The Android Capture screen polls pipeline state, and Review renders the transcript
-and draft before exposing mutually exclusive Approve and Reject actions. Rejection
-is retained for audit but excluded from pending and approved knowledge. Run
-`npm run verify:review-decisions` with the server running to verify idempotency,
-conflict handling, and filtered lists. Ask/retrieval remain deferred to Phase 5.
+The server needs `DATABASE_URL`, AWS credentials and bucket details, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY`.
 
-## Phase 6 reset
-
-Preview the target and row counts, then explicitly confirm the destructive reset:
+Server:
 
 ```sh
 cd server
-npm run reset:demo
-npm run reset:demo -- --confirm
+npm install
+npm run migrate
+npm run seed
+npm run dev
 ```
 
-The reset clears captures, chunks, transcripts, procedures, and their S3 objects,
-resets capture IDs, and verifies that seeded SOPs—including `SOP-MCH-042`—remain.
+Android app:
 
-## Production
+```sh
+cd app
+npm install
+npm run start
+```
 
-- Backend: `https://smartoperator-api-production.up.railway.app`
-- Health: `https://smartoperator-api-production.up.railway.app/health`
-- Android build: `cd app && eas build --platform android --profile preview`
+Set `EXPO_PUBLIC_API_URL` to a reachable server URL. A physical phone cannot use the computer's `localhost`. The native recorder requires a development build or APK; Expo Go is not supported.
 
-The EAS `preview` profile embeds the production API URL and produces an
-internally distributed APK.
+## Verify and build
+
+```sh
+cd server
+npm run typecheck
+npm test
+npm run build
+
+cd ../app
+npm run typecheck
+npm run doctor
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Reset captured data while keeping seeded SOPs:
+
+```sh
+cd server
+npm run reset:demo              # dry run
+npm run reset:demo -- --confirm # destructive
+```
+
+## Production API
+
+- API: https://smartoperator-api-production.up.railway.app
+- Health: https://smartoperator-api-production.up.railway.app/health
+
+Deploy from `server/`:
+
+```sh
+npx @railway/cli up . --path-as-root --service smartoperator-api --environment production
+```
+
+## Current scope
+
+Android only, one machine, internal distribution, no authentication, keyword retrieval instead of vector search, and a single-process processing queue.
