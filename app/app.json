@@ -27,7 +27,9 @@
         }
       ],
       "./plugins/withBackgroundVideoRecorder",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

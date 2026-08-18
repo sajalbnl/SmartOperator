@@ -1,9 +1,11 @@
 import { fetch as expoFetch, type FetchRequestInit } from 'expo/fetch';
+import { File } from 'expo-file-system';
 
 import type { PresignedPart } from './types';
 
 const HEALTH_TIMEOUT_MS = 5_000;
 const API_TIMEOUT_MS = 20_000;
+const ASK_TIMEOUT_MS = 90_000;
 const UPLOAD_TIMEOUT_MS = 120_000;
 
 type CaptureRegistration = {
@@ -35,6 +37,18 @@ export type ProcedureDraft = {
   title: string;
   tools: string[];
   transcript: string;
+};
+
+export type AskSource = {
+  id: string;
+  label: string;
+  type: 'sop' | 'capture';
+};
+
+export type AskResult = {
+  answer: string;
+  question: string;
+  sources: AskSource[];
 };
 
 export class ApiError extends Error {
@@ -195,6 +209,40 @@ export function rejectProcedure(procedureId: string) {
 
 export function approveProcedure(procedureId: string) {
   return jsonRequest<{ procedure: ProcedureDraft }>(`/procedures/${procedureId}/approve`, {
+    method: 'POST',
+  });
+}
+
+export async function askWithAudio(audioUri: string) {
+  const file = new File(audioUri);
+  if (!file.exists || file.size === 0) {
+    throw new ApiError('The recorded question is empty.', null);
+  }
+  const form = new FormData();
+  form.append('machine_id', 'CNC-042');
+  // expo-file-system's File is a file-backed Blob implementation understood by
+  // expo/fetch. Do not call File.slice() here: React Native cannot construct a
+  // JS Blob from the resulting ArrayBuffer/ArrayBufferView on Android.
+  form.append('audio', file, file.name || 'question.m4a');
+
+  const response = await fetchWithTimeout(
+    `${apiBaseUrl()}/ask`,
+    {
+      body: form,
+      headers: { Accept: 'application/json' },
+      method: 'POST',
+    },
+    ASK_TIMEOUT_MS,
+  );
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+  return response.json() as Promise<AskResult>;
+}
+
+export function askWithText(text: string) {
+  return jsonRequest<AskResult>('/ask', {
+    body: JSON.stringify({ machine_id: 'CNC-042', text }),
     method: 'POST',
   });
 }

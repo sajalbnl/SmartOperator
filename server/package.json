@@ -15,6 +15,7 @@
     "verify:s3": "node --import tsx scripts/verify-s3-multipart.ts",
     "verify:openai": "node --import tsx scripts/verify-openai.ts",
     "verify:anthropic": "node --import tsx scripts/verify-anthropic.ts",
+    "verify:ask-prompt": "node --import tsx scripts/verify-ask-prompt.ts",
     "verify:pipeline-retry": "node --import tsx scripts/verify-pipeline-retry.ts",
     "verify:review-decisions": "node --import tsx scripts/verify-review-decisions.ts",
     "test": "node --import tsx --test src/**/*.test.ts"
@@ -25,10 +26,12 @@
     "dotenv": "^17.0.0",
     "express": "^5.0.0",
     "ffmpeg-static": "^5.3.0",
+    "multer": "^2.2.0",
     "pg": "^8.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.0.0",
     "tsx": "^4.0.0",

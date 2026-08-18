@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { CaptureScreen } from './screens/CaptureScreen';
-import { PlaceholderScreen } from './screens/PlaceholderScreen';
+import { AskScreen } from './screens/AskScreen';
 import { ReviewScreen } from './screens/ReviewScreen';
 import { colors } from './theme';
 import { durableUploader } from './queue/uploader';
@@ -13,7 +13,7 @@ type Tab = 'Capture' | 'Review' | 'Ask';
 const tabs: Tab[] = ['Capture', 'Review', 'Ask'];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('Capture');
+  const [activeTab, setActiveTab] = useState<Tab>('Ask');
 
   useEffect(() => {
     void durableUploader.start();
@@ -42,7 +42,7 @@ export default function App() {
         importantForAccessibility={activeTab === 'Ask' ? 'auto' : 'no-hide-descendants'}
         style={[styles.content, activeTab !== 'Ask' && styles.hidden]}
       >
-        <PlaceholderScreen name="Ask" />
+        <AskScreen isActive={activeTab === 'Ask'} />
       </View>
       <View accessibilityRole="tablist" style={styles.tabBar}>
         {tabs.map((tab) => {

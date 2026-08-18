@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import multer from "multer";
+import { ask } from "./ask.js";
 import { db } from "./db.js";
 import { HttpError } from "./http-error.js";
 import {
@@ -19,6 +21,10 @@ import {
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
+const askUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+});
 
 app.use(express.json());
 
@@ -45,6 +51,23 @@ function positivePathInteger(value: string, field: string): number {
 
 app.get("/health", (_request, response) => {
   response.status(200).json({ status: "ok" });
+});
+
+app.post("/ask", askUpload.single("audio"), async (request, response) => {
+  const body = request.body as Record<string, unknown> | undefined;
+  response.status(200).json(
+    await ask({
+      text: typeof body?.text === "string" ? body.text : undefined,
+      machineId: typeof body?.machine_id === "string" ? body.machine_id : undefined,
+      audio: request.file
+        ? {
+            bytes: request.file.buffer,
+            filename: request.file.originalname || "question.m4a",
+            mimeType: request.file.mimetype || "audio/mp4",
+          }
+        : undefined,
+    }),
+  );
 });
 
 app.post("/captures", async (request, response) => {
@@ -169,6 +192,16 @@ app.use(
       response.status(error.status).json({
         error: error.message,
         ...(error.details === undefined ? {} : { details: error.details }),
+      });
+      return;
+    }
+
+    if (error instanceof multer.MulterError) {
+      response.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+        error:
+          error.code === "LIMIT_FILE_SIZE"
+            ? "Ask audio must be at most 15 MiB."
+            : error.message,
       });
       return;
     }
