@@ -35,6 +35,14 @@ function withBackgroundVideoRecorder(config) {
       throw new Error('Android application entry is missing from the manifest.');
     }
 
+    // Captures and the durable queue are plant data. Keep them out of Android's
+    // cloud/device-transfer backup paths; an uninstall or MDM wipe must remove them.
+    application.$ = {
+      ...application.$,
+      'android:allowBackup': 'false',
+      'android:fullBackupContent': 'false',
+    };
+
     const services = application.service ?? [];
     const existing = services.find(
       (service) => service.$?.['android:name'] === SERVICE_NAME,

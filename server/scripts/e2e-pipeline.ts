@@ -7,6 +7,7 @@ import { requireEnv, responseError } from "./env.js";
 
 const filePath = process.argv[2];
 const allowStructureStub = process.argv.includes("--allow-structure-stub");
+const demoQuestion = "How do I troubleshoot vibration on CNC-042?";
 if (!filePath) {
   throw new Error(
     "Usage: npm run e2e:pipeline -- /absolute/path/to/synthetic-video.mp4 [--allow-structure-stub]",
@@ -30,6 +31,12 @@ type Part = {
 type Pipeline = {
   error: string | null;
   status: "uploaded" | "transcribing" | "structuring" | "ready" | "failed";
+};
+
+type AskResult = {
+  answer: string;
+  question: string;
+  sources: Array<{ id: string; type: "capture" | "sop" }>;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -64,6 +71,21 @@ async function rowCounts() {
 }
 
 try {
+  const before = await request<AskResult>("/ask", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ machine_id: "CNC-042", text: demoQuestion }),
+  });
+  if (
+    before.question !== demoQuestion ||
+    !before.sources.some((source) => source.id === "SOP-MCH-042") ||
+    before.sources.some((source) => source.type === "capture") ||
+    !before.answer.toLowerCase().includes("bearing")
+  ) {
+    throw new Error(`First Ask did not produce the seeded-SOP baseline: ${JSON.stringify(before)}`);
+  }
+  console.log(`First Ask: ${before.answer}`);
+
   const plan = await request<{ captureId: string; parts: Part[] }>("/captures", {
     method: "POST",
     headers: {
@@ -240,6 +262,23 @@ try {
   }
 
   console.log("Review response included transcript/draft; repeated approval stayed true.");
+
+  const after = await request<AskResult>("/ask", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ machine_id: "CNC-042", text: demoQuestion }),
+  });
+  const normalizedAfter = after.answer.toLowerCase();
+  if (
+    after.question !== demoQuestion ||
+    !after.sources.some((source) => source.id === `CAP-${captureId}`) ||
+    !normalizedAfter.includes("coolant") ||
+    !normalizedAfter.includes("contamin")
+  ) {
+    throw new Error(`Second Ask did not use captured knowledge: ${JSON.stringify(after)}`);
+  }
+  console.log(`Second Ask: ${after.answer}`);
+  console.log("PASS: identical Ask improved after human approval and cited the capture.");
 } finally {
   if (captureId) {
     const capture = await db.query<{ s3_key: string }>(

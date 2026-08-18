@@ -28,3 +28,9 @@ PHASE_0_SETUP.md
 myto-prototype-spec.md
 PHASE_PROMPTS.md
 PRD.md
+DEMO_RUNBOOK.md
+ONE_PAGER.md
+
+# Binary Phase 6 deliverables
+deliverables/*.apk
+deliverables/*.mp4

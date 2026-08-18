@@ -49,6 +49,14 @@ function positivePathInteger(value: string, field: string): number {
   return integer(Number(value), field, 1);
 }
 
+app.get("/", (_request, response) => {
+  response.status(200).json({
+    name: "SmartOperator API",
+    status: "ok",
+    health: "/health",
+  });
+});
+
 app.get("/health", (_request, response) => {
   response.status(200).json({ status: "ok" });
 });

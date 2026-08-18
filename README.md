@@ -8,6 +8,8 @@ Offline-first Android capture prototype for machine `CNC-042`.
 - `app/` — Android Expo dev-client app with durable capture queue and Review gate
 - `seed/` — hand-authored SOP markdown
 - `PHASE_0_SETUP.md` — external service setup and verification
+- `ONE_PAGER.md` — one-page Phase 6 engineering brief
+- `DEMO_RUNBOOK.md` — exact 90-second shot plan and reset/rehearsal checklist
 
 ## Phase 0 commands
 
@@ -45,3 +47,25 @@ and draft before exposing mutually exclusive Approve and Reject actions. Rejecti
 is retained for audit but excluded from pending and approved knowledge. Run
 `npm run verify:review-decisions` with the server running to verify idempotency,
 conflict handling, and filtered lists. Ask/retrieval remain deferred to Phase 5.
+
+## Phase 6 reset
+
+Preview the target and row counts, then explicitly confirm the destructive reset:
+
+```sh
+cd server
+npm run reset:demo
+npm run reset:demo -- --confirm
+```
+
+The reset clears captures, chunks, transcripts, procedures, and their S3 objects,
+resets capture IDs, and verifies that seeded SOPs—including `SOP-MCH-042`—remain.
+
+## Production
+
+- Backend: `https://smartoperator-api-production.up.railway.app`
+- Health: `https://smartoperator-api-production.up.railway.app/health`
+- Android build: `cd app && eas build --platform android --profile preview`
+
+The EAS `preview` profile embeds the production API URL and produces an
+internally distributed APK.

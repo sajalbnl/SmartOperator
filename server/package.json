@@ -9,6 +9,7 @@
     "start": "node dist/src/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "node --import tsx scripts/migrate.ts",
+    "reset:demo": "node --import tsx scripts/reset-demo.ts",
     "seed": "node --import tsx scripts/seed.ts",
     "e2e:upload": "node --import tsx scripts/e2e-upload.ts",
     "e2e:pipeline": "node --import tsx scripts/e2e-pipeline.ts",

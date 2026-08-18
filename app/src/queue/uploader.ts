@@ -272,6 +272,14 @@ class DurableUploader {
     try {
       await completeCapture(capture.server_id as string);
       await markCaptureDone(capture.id);
+      try {
+        const localFile = new File(capture.file_uri);
+        if (localFile.exists) {
+          localFile.delete();
+        }
+      } catch (error) {
+        this.updateSnapshot({ detail: `Uploaded; local cleanup failed: ${errorMessage(error)}` });
+      }
     } catch (error) {
       const attempt = capture.attempts + 1;
       await failCapture(

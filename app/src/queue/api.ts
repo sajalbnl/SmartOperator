@@ -225,19 +225,25 @@ export async function askWithAudio(audioUri: string) {
   // JS Blob from the resulting ArrayBuffer/ArrayBufferView on Android.
   form.append('audio', file, file.name || 'question.m4a');
 
-  const response = await fetchWithTimeout(
-    `${apiBaseUrl()}/ask`,
-    {
-      body: form,
-      headers: { Accept: 'application/json' },
-      method: 'POST',
-    },
-    ASK_TIMEOUT_MS,
-  );
-  if (!response.ok) {
-    throw await responseError(response);
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl()}/ask`,
+      {
+        body: form,
+        headers: { Accept: 'application/json' },
+        method: 'POST',
+      },
+      ASK_TIMEOUT_MS,
+    );
+    if (!response.ok) {
+      throw await responseError(response);
+    }
+    return response.json() as Promise<AskResult>;
+  } finally {
+    if (file.exists) {
+      file.delete();
+    }
   }
-  return response.json() as Promise<AskResult>;
 }
 
 export function askWithText(text: string) {

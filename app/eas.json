@@ -13,10 +13,12 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://smartoperator-api-production.up.railway.app"
+      },
       "android": {
         "buildType": "apk"
       }
     }
   }
 }
-
