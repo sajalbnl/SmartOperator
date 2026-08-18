@@ -20,7 +20,24 @@ const documents: RetrievedDocument[] = [
     title: "Coolant contamination before bearing replacement",
     type: "capture",
   },
+  {
+    content: "Inspect the coolant sight glass for cloudiness or suspended debris.",
+    id: "CAP-8",
+    label: "Coolant sight glass inspection",
+    title: "Coolant sight glass inspection",
+    type: "capture",
+  },
+  {
+    content:
+      "If contamination is present, isolate the machine and replace the coolant before another bearing.",
+    id: "CAP-9",
+    label: "Contaminated coolant isolation",
+    title: "Contaminated coolant isolation",
+    type: "capture",
+  },
 ];
+
+const requiredSourceIds = ["CAP-7", "CAP-8", "CAP-9", "SOP-MCH-042"];
 
 for (let run = 1; run <= 3; run += 1) {
   const result = await answerQuestion(question, "CNC-042", documents);
@@ -30,8 +47,11 @@ for (let run = 1; run <= 3; run += 1) {
       `Run ${run}: answer did not lead with coolant contamination. Answer: ${result.answer}`,
     );
   }
-  if (!result.sourceIds.includes("CAP-7") || !result.sourceIds.includes("SOP-MCH-042")) {
-    throw new Error(`Run ${run}: answer did not cite both CAP-7 and SOP-MCH-042.`);
+  const missingSourceIds = requiredSourceIds.filter(
+    (sourceId) => !result.sourceIds.includes(sourceId),
+  );
+  if (missingSourceIds.length > 0) {
+    throw new Error(`Run ${run}: answer omitted ${missingSourceIds.join(", ")}.`);
   }
   console.log(`Run ${run}: PASS (${result.sourceIds.join(", ")})`);
   console.log(result.answer);
