@@ -1,6 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StatusBar as NativeStatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { CaptureScreen } from './screens/CaptureScreen';
 import { AskScreen } from './screens/AskScreen';
@@ -69,6 +77,9 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: colors.canvas,
     flex: 1,
+    // Android edge-to-edge layouts do not receive a top inset from the
+    // core SafeAreaView. Keep every screen header below the system status bar.
+    paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0,
   },
   content: {
     flex: 1,
